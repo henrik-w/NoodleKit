@@ -92,8 +92,12 @@ static char cleanupGlueKey;
 - (id)addCleanupBlock:(void (^)(id object))block
 {
 	NSMutableDictionary	*glueTable;
-	NoodleGlue			*glue;
-	__block __weak id	blockSelf;
+    NoodleGlue			*glue;
+#if __has_feature(objc_arc)
+    __block __weak id	blockSelf;
+#else
+    __block       id	blockSelf;
+#endif
 	id					key;
 	
 	blockSelf = self;
