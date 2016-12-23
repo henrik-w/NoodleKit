@@ -38,6 +38,9 @@
 - (void)awakeFromNib
 {
     lineNumberView = [[MarkerLineNumberView alloc] initWithScrollView:scrollView];
+    [lineNumberView setReservedThicknessForMarkers:8.0];
+    //[lineNumberView setReservedThicknessForAccessoryView:16.0];
+    [lineNumberView setBackgroundColor:NSColor.controlColor];
     [scrollView setVerticalRulerView:lineNumberView];
     [scrollView setHasHorizontalRuler:NO];
     [scrollView setHasVerticalRuler:YES];

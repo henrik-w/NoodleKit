@@ -45,6 +45,7 @@
 - (NSUInteger)lineNumberForCharacterIndex:(NSUInteger)index inText:(NSString *)text;
 - (NSDictionary *)textAttributes;
 - (NSDictionary *)markerTextAttributes;
+- (CGFloat)calculateRuleThickness;
 
 @end
 
@@ -165,7 +166,6 @@
     {
         NSUInteger      charIndex, stringLength, lineEnd, contentEnd, count, lineIndex;
         NSString        *text;
-        CGFloat         oldThickness, newThickness;
         
         text = [view string];
         stringLength = [text length];
@@ -208,14 +208,16 @@
         }
 
         // See if we need to adjust the width of the view
-        oldThickness = [self ruleThickness];
-        newThickness = [self requiredThickness];
-        if (fabs(oldThickness - newThickness) > 1)
+        CGFloat oldThickness = [self ruleThickness];
+        CGFloat newThickness = [self calculateRuleThickness];
+        if (oldThickness != newThickness)
         {
 			NSInvocation			*invocation;
 			
 			// Not a good idea to resize the view during calculations (which can happen during
 			// display). Do a delayed perform (using NSInvocation since arg is a float).
+            // ...or do it via KVO, so the Notification Center perform the delayed resize...
+            // Observe the key "lineIndices.@count" for adjusting the thickness
 			invocation = [NSInvocation invocationWithMethodSignature:[self methodSignatureForSelector:@selector(setRuleThickness:)]];
 			[invocation setSelector:@selector(setRuleThickness:)];
 			[invocation setTarget:self];
@@ -307,10 +309,9 @@
     return [NSDictionary dictionaryWithObjectsAndKeys:font, NSFontAttributeName, color, NSForegroundColorAttributeName, nil];
 }
 
-- (CGFloat)requiredThickness
+- (CGFloat)calculateRuleThickness
 {
-    NSUInteger			lineCount, digits, i;
-    NSMutableString     *sampleString;
+    NSUInteger			lineCount, digits;
     NSSize              stringSize;
     
     lineCount = [[self lineIndices] count];
@@ -319,20 +320,14 @@
     {
         digits = (NSUInteger)log10(lineCount) + 1;
     }
-	sampleString = [NSMutableString string];
-    for (i = 0; i < digits; i++)
-    {
-        // Use "8" since it is one of the fatter numbers. Anything but "1"
-        // will probably be ok here. I could be pedantic and actually find the fattest
-		// number for the current font but nah.
-        [sampleString appendString:@"8"];
-    }
-    
-    stringSize = [sampleString sizeWithAttributes:[self textAttributes]];
+    // Use "8" since it is one of the fatter numbers. Anything but "1"
+    // will probably be ok here. I could be pedantic and actually find the fattest
+    // number for the current font but nah.
+    stringSize = [@"8" sizeWithAttributes:[self textAttributes]];
 
 	// Round up the value. There is a bug on 10.4 where the display gets all wonky when scrolling if you don't
 	// return an integral value here.
-    return ceil(MAX(DEFAULT_THICKNESS, stringSize.width + RULER_MARGIN * 2));
+    return ceil(MAX(DEFAULT_THICKNESS, stringSize.width * digits + RULER_MARGIN * 2));
 }
 
 - (void)drawHashMarksAndLabelsInRect:(NSRect)aRect
@@ -408,16 +403,18 @@
                     // portion. Need to compensate for the clipview's coordinates.
                     ypos = yinset + NSMinY(rects[0]) - NSMinY(visibleRect);
 					
+                    // TODO: refactoring necessary
+                    // Markers should be drawn with drawMarkersInRect:(NSRect)rect
 					marker = [_linesToMarkers objectForKey:[NSNumber numberWithUnsignedInteger:line]];
 					
 					if (marker != nil)
 					{
 						markerImage = [marker image];
 						markerSize = [markerImage size];
-						markerRect = NSMakeRect(0.0, 0.0, markerSize.width, markerSize.height);
+						markerRect.size = markerSize;
 
 						// Marker is flush right and centered vertically within the line.
-						markerRect.origin.x = NSWidth(bounds) - [markerImage size].width - 1.0;
+                        markerRect.origin.x = NSWidth(bounds) - [markerImage size].width;
 						markerRect.origin.y = ypos + NSHeight(rects[0]) / 2.0 - [marker imageOrigin].y;
 
 						[markerImage drawInRect:markerRect fromRect:NSMakeRect(0, 0, markerSize.width, markerSize.height) operation:NSCompositeSourceOver fraction:1.0];
