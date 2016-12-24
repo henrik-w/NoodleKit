@@ -344,13 +344,9 @@
 
 - (void)drawHashMarksAndLabelsInRect:(NSRect)aRect
 {
-    id			view;
-	NSRect		bounds;
+	NSRect bounds = [self bounds];
 
-	bounds = [self bounds];
-
-	if (_backgroundColor != nil)
-	{
+	if (nil != _backgroundColor) {
 		[_backgroundColor set];
 		NSRectFill(bounds);
 		
@@ -358,63 +354,76 @@
 		[NSBezierPath strokeLineFromPoint:NSMakePoint(NSMaxX(bounds) - 0.5, NSMinY(bounds))
                                   toPoint:NSMakePoint(NSMaxX(bounds) - 0.5, NSMaxY(bounds))];
 	}
-	
-    view = [self clientView];
-	
-    if ([view isKindOfClass:[NSTextView class]])
-    {
-        NSLayoutManager			*layoutManager;
-        NSTextContainer			*container;
-        NSRect					visibleRect;
-        NSRange					range, nullRange;
-        NSUInteger				rectCount, index, line, count;
-        NSRectArray				rects;
-        CGFloat					ypos, yinset;
-        NSMutableArray			*lines;
 
-        layoutManager = [view layoutManager];
-        container = [view textContainer];
-        nullRange = NSMakeRange(NSNotFound, 0);
+    id view = [self clientView];
+	
+    if (nil != view && [view isKindOfClass:[NSTextView class]]) {
+        NSLayoutManager *layoutManager = [view layoutManager];
+        NSTextContainer *container = [view textContainer];
 		
-		yinset = [view textContainerInset].height;        
-        visibleRect = [[[self scrollView] contentView] bounds];
-
-		lines = [self lineIndices];
+		CGFloat yinset = [view textContainerInset].height;
+        NSRect visibleRect = [[[self scrollView] contentView] bounds];
 
         // Find the characters that are currently visible
         NSRange glyphRange = [layoutManager glyphRangeForBoundingRect:visibleRect inTextContainer:container];
-        range = [layoutManager characterRangeForGlyphRange:glyphRange actualGlyphRange:NULL];
+
+        NSRange range = [layoutManager characterRangeForGlyphRange:glyphRange actualGlyphRange:NULL];
         
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
+        NSArray *lines = [self lineIndices];
+        NSUInteger firstLineNumber = [self lineNumberForCharacterIndex:range.location];
+        NSUInteger lastLineNumber = [self lineNumberForCharacterIndex:NSMaxRange(range)]+1;
+        NSIndexSet *indexes = [NSIndexSet indexSetWithIndexesInRange:(NSRange){firstLineNumber, lastLineNumber - firstLineNumber}];
+        [lines enumerateObjectsAtIndexes:indexes options:0 usingBlock:^(id  _Nonnull obj, NSUInteger line, BOOL * _Nonnull stop) {
+            NSUInteger rectCount = 0;
+            NSRange characterRange = (NSRange){[obj unsignedIntegerValue], 0};
+
+            NSRectArray rects = [layoutManager rectArrayForCharacterRange:characterRange
+                                             withinSelectedCharacterRange:characterRange
+                                                          inTextContainer:container
+                                                                rectCount:&rectCount];
+            if (0 < rectCount) {
+                // Note that the ruler view is only as tall as the visible
+                // portion. Need to compensate for the clipview's coordinates.
+                CGFloat ypos = yinset + NSMinY(rects[0]) - NSMinY(visibleRect);
+                [self drawLabelAndMarkerInRect:NSMakeRect(0.0, ypos, NSWidth(bounds), NSHeight(rects[0])) atLineNumber:line];
+            }
+        }];
+#else
         // Fudge the range a tad in case there is an extra new line at end.
         // It doesn't show up in the glyphs so would not be accounted for.
         range.length++;
-        
-        count = [lines count];
-        
-        for (line = [self lineNumberForCharacterIndex:range.location]; line < count; line++)
+
+        NSRange nullRange = NSMakeRange(NSNotFound, 0);
+        NSArray *lines = [self lineIndices];
+        NSUInteger count = [lines count];
+
+        for (NSUInteger line = [self lineNumberForCharacterIndex:range.location]; line < count; line++)
         {
-            index = [[lines objectAtIndex:line] unsignedIntegerValue];
-            
+            NSUInteger index = [[lines objectAtIndex:line] unsignedIntegerValue];
+
             if (NSLocationInRange(index, range))
             {
-                rects = [layoutManager rectArrayForCharacterRange:NSMakeRange(index, 0)
-                                     withinSelectedCharacterRange:nullRange
-                                                  inTextContainer:container
-                                                        rectCount:&rectCount];
-				
+                NSUInteger rectCount = 0;
+                NSRectArray rects = [layoutManager rectArrayForCharacterRange:NSMakeRange(index, 0)
+                                                 withinSelectedCharacterRange:nullRange
+                                                              inTextContainer:container
+                                                                    rectCount:&rectCount];
+
                 if (rectCount > 0)
                 {
                     // Note that the ruler view is only as tall as the visible
                     // portion. Need to compensate for the clipview's coordinates.
-                    ypos = yinset + NSMinY(rects[0]) - NSMinY(visibleRect);
+                    CGFloat ypos = yinset + NSMinY(rects[0]) - NSMinY(visibleRect);
                     [self drawLabelAndMarkerInRect:NSMakeRect(0.0, ypos, NSWidth(bounds), NSHeight(rects[0])) atLineNumber:line];
                 }
             }
-			if (index > NSMaxRange(range))
-			{
-				break;
-			}
+            if (index > NSMaxRange(range))
+            {
+                break;
+            }
         }
+#endif
     }
 }
 
