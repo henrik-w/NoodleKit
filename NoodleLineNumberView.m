@@ -42,7 +42,7 @@
 - (NSMutableArray *)lineIndices;
 - (void)invalidateLineIndicesFromCharacterIndex:(NSUInteger)charIndex;
 - (void)calculateLines;
-- (NSUInteger)lineNumberForCharacterIndex:(NSUInteger)index inText:(NSString *)text;
+- (NSUInteger)lineNumberForCharacterIndex:(NSUInteger)index;
 - (NSDictionary *)textAttributes;
 - (NSDictionary *)markerTextAttributes;
 - (CGFloat)calculateRuleThickness;
@@ -172,7 +172,7 @@
         count = [_lineIndices count];
 
         charIndex = 0;
-        lineIndex = [self lineNumberForCharacterIndex:_invalidCharacterIndex inText:text];
+        lineIndex = [self lineNumberForCharacterIndex:_invalidCharacterIndex];
         if (count > 0)
         {
             charIndex = [[_lineIndices objectAtIndex:lineIndex] unsignedIntegerValue];
@@ -228,7 +228,7 @@
 	}
 }
 
-- (NSUInteger)lineNumberForCharacterIndex:(NSUInteger)charIndex inText:(NSString *)text
+- (NSUInteger)lineNumberForCharacterIndex:(NSUInteger)charIndex
 {
     NSUInteger			left, right, mid, lineStart;
 	NSMutableArray		*lines;
@@ -354,7 +354,7 @@
         NSTextContainer			*container;
         NSRect					visibleRect, markerRect;
         NSRange					range, glyphRange, nullRange;
-        NSString				*text, *labelText;
+        NSString				*labelText;
         NSUInteger				rectCount, index, line, count;
         NSRectArray				rects;
         CGFloat					ypos, yinset;
@@ -366,7 +366,6 @@
 
         layoutManager = [view layoutManager];
         container = [view textContainer];
-        text = [view string];
         nullRange = NSMakeRange(NSNotFound, 0);
 		
 		yinset = [view textContainerInset].height;        
@@ -386,7 +385,7 @@
         
         count = [lines count];
         
-        for (line = [self lineNumberForCharacterIndex:range.location inText:text]; line < count; line++)
+        for (line = [self lineNumberForCharacterIndex:range.location]; line < count; line++)
         {
             index = [[lines objectAtIndex:line] unsignedIntegerValue];
             
