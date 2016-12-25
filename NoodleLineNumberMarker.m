@@ -29,26 +29,136 @@
 
 #import "NoodleLineNumberMarker.h"
 
+#import "NoodleLineNumberView.h"
+
+
+@interface NoodleLineNumberMarker ()
+
+@property (readonly, retain) NSDictionary *textAttributes;
+
+@end
+
 
 @implementation NoodleLineNumberMarker
 
-- (id)initWithRulerView:(NSRulerView *)aRulerView lineNumber:(CGFloat)line image:(NSImage *)anImage imageOrigin:(NSPoint)imageOrigin
+@synthesize textAttributes = _textAttributes;
+
+- (instancetype)initWithRulerView:(NSRulerView *)aRulerView lineNumber:(CGFloat)line image:(NSImage *)anImage imageOrigin:(NSPoint)imageOrigin
 {
-	if ((self = [super initWithRulerView:aRulerView markerLocation:0.0 image:anImage imageOrigin:imageOrigin]) != nil)
-	{
-		_lineNumber = line;
-	}
-	return self;
+	return [self initWithRulerView:(NoodleLineNumberView *)aRulerView markerLocation:0.0 image:anImage imageOrigin:imageOrigin];
 }
 
-- (void)setLineNumber:(NSUInteger)line
+
+- (instancetype)initWithRulerView:(NoodleLineNumberView *)ruler markerLocation:(CGFloat)location image:(NSImage *)image imageOrigin:(NSPoint)imageOrigin
 {
-	_lineNumber = line;
+    self = [super initWithRulerView:ruler markerLocation:location image:image imageOrigin:imageOrigin];
+    if (nil == self) {
+        return nil;
+    }
+
+    NSRect visibleRect = [[[ruler scrollView] contentView] bounds];
+    if ([ruler orientation] == NSVerticalRuler) {
+        location -= NSMinY(visibleRect) + imageOrigin.y;
+    } else {
+        location -= NSMinX(visibleRect) - imageOrigin.x;
+    }
+    _lineNumber = [ruler lineNumberForLocation:location];
+
+    _textAttributes = nil;
+
+    return self;
 }
 
-- (NSUInteger)lineNumber
+
+- (void)dealloc
 {
-	return _lineNumber;
+#if !__has_feature(objc_arc)
+    [_textAttributes release];
+    
+    [super dealloc];
+#endif
+}
+
+
+- (void)drawRect:(NSRect)rect
+{
+    if (nil == _image || nil == _ruler || nil == [_ruler clientView]) {
+        return;
+    }
+
+    // All drawings here is designed only for vertical rulers!
+
+    NSRect visibleRect = [[[_ruler scrollView] contentView] bounds];
+    id view = [_ruler clientView];
+    if ([view isKindOfClass:[NSTextView class]]) {
+        // draw image
+        CGFloat linePos = -1;
+        NSRect extraLineRect = [[view layoutManager] extraLineFragmentRect];
+        if (0 < extraLineRect.origin.y && NSPointInRect((NSPoint){0, [self markerLocation]}, extraLineRect)) {
+            // there is an extra line fragment and the location point onto it
+            linePos = extraLineRect.origin.y;
+        } else {
+            NSUInteger characterIndexForLocation = [[view layoutManager] characterIndexForPoint:(NSPoint){0, [self markerLocation]}
+                                                                                inTextContainer:[view textContainer]
+                                                       fractionOfDistanceBetweenInsertionPoints:NULL];
+            NSRange effectiveRange = [[[view textStorage] string] paragraphRangeForRange:(NSRange){characterIndexForLocation, 0}];
+            NSUInteger rectCount = 0;
+            NSRectArray rects = [[view layoutManager] rectArrayForCharacterRange:effectiveRange
+                                                    withinSelectedCharacterRange:(NSRange){NSNotFound, 0}
+                                                                 inTextContainer:[view textContainer]
+                                                                       rectCount:&rectCount];
+            if (0 < rectCount) {
+                linePos = rects[0].origin.y;
+            }
+        }
+
+        NSRect markerRect;
+        markerRect.size = [_image size];
+        markerRect.origin.x = visibleRect.origin.x + [_ruler baselineLocation] - _imageOrigin.x;
+        markerRect.origin.y = linePos - visibleRect.origin.y - _imageOrigin.y + markerRect.size.height/2;
+
+        [_image drawInRect:markerRect fromRect:(NSRect){{0, 0}, [_image size]}
+                 operation:NSCompositeSourceOver fraction:1.0];
+
+        // draw label (in this case a linenumber) above the image
+        NSString *labelText = [NSString stringWithFormat:@"%jd", (uintmax_t)_lineNumber];
+
+        NSDictionary *currentTextAttributes = [self textAttributes];
+        NSSize stringSize = [labelText sizeWithAttributes:currentTextAttributes];
+
+        // Draw string flush right, centered vertically within the line
+        NSRect labelRect;
+        labelRect.size = markerRect.size;
+        labelRect.origin.x = rect.origin.x + labelRect.size.width - stringSize.width - _imageOrigin.x / 2.0;
+        labelRect.origin.y = markerRect.origin.y + (labelRect.size.height - stringSize.height) / 2.0;
+        [labelText drawInRect:labelRect withAttributes:currentTextAttributes];
+    }
+}
+
+#pragma mark private methods
+
+- (NSDictionary *)textAttributes
+{
+    if (nil == _textAttributes) {
+        NSFont  *font;
+        NSColor *color;
+
+        font = [(NoodleLineNumberView *)_ruler font];
+        if (font == nil) {
+            font = [NSFont labelFontOfSize:[NSFont systemFontSizeForControlSize:NSMiniControlSize]];
+        }
+
+        color = [(NoodleLineNumberView *)_ruler alternateTextColor];
+        if (color == nil) {
+            color = [NSColor whiteColor];
+        }
+
+        _textAttributes = [NSDictionary dictionaryWithObjectsAndKeys:font, NSFontAttributeName, color, NSForegroundColorAttributeName, nil];
+#if !__has_feature(objc_arc)
+        [_textAttributes retain];
+#endif
+    }
+    return _textAttributes;
 }
 
 #pragma mark NSCoding methods

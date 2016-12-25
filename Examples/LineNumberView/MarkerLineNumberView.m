@@ -112,11 +112,15 @@
 			[self removeMarker:marker];
 		}
 		else
-		{
+        {
+            NSRect visibleRect = [[[self scrollView] contentView] bounds];
+            location.y += NSMinY(visibleRect);
+            NSSize imageSize = NSMakeSize([self ruleThickness] + [self reservedThicknessForMarkers] - 2, MARKER_HEIGHT);
+            NSPoint imageOrigin = NSMakePoint(imageSize.width - [self ruleThickness], MARKER_HEIGHT / 2);
             marker = [[NoodleLineNumberMarker alloc] initWithRulerView:self
-                                                            lineNumber:line
-                                                                 image:[self markerImageWithSize:NSMakeSize([self ruleThickness] + [self reservedThicknessForMarkers] - 1, MARKER_HEIGHT)]
-                                                           imageOrigin:NSMakePoint(0, MARKER_HEIGHT / 2)];
+                                                        markerLocation:location.y
+                                                                 image:[self markerImageWithSize:imageSize]
+                                                           imageOrigin:imageOrigin];
 			[self addMarker:marker];
 			[marker release];
 		}

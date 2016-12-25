@@ -38,7 +38,6 @@
 @interface NoodleLineNumberView ()
 
 @property (readonly, retain) NSDictionary *textAttributes;
-@property (readonly, retain) NSDictionary *markerTextAttributes;
 
 @end
 
@@ -47,7 +46,6 @@
 
 - (NSFont *)defaultFont;
 - (NSColor *)defaultTextColor;
-- (NSColor *)defaultAlternateTextColor;
 - (NSMutableArray *)lineIndices;
 - (void)invalidateLineIndicesFromCharacterIndex:(NSUInteger)charIndex;
 - (void)calculateLines;
@@ -63,7 +61,6 @@
 @synthesize alternateTextColor = _alternateTextColor;
 @synthesize backgroundColor = _backgroundColor;
 @synthesize textAttributes = _textAttributes;
-@synthesize markerTextAttributes = _markerTextAttributes;
 
 - (id)initWithScrollView:(NSScrollView *)aScrollView
 {
@@ -96,7 +93,6 @@
     [_alternateTextColor release];
     [_backgroundColor release];
     [_textAttributes release];
-    [_markerTextAttributes release];
     
     [super dealloc];
 #endif
@@ -110,11 +106,6 @@
 - (NSColor *)defaultTextColor
 {
     return [NSColor colorWithCalibratedWhite:0.42 alpha:1.0];
-}
-
-- (NSColor *)defaultAlternateTextColor
-{
-    return [NSColor whiteColor];
 }
 
 - (void)setClientView:(NSView *)aView
@@ -295,32 +286,6 @@
     return _textAttributes;
 }
 
-- (NSDictionary *)markerTextAttributes
-{
-    if (nil == _markerTextAttributes) {
-        NSFont  *font;
-        NSColor *color;
-
-        font = [self font];
-        if (font == nil)
-        {
-            font = [self defaultFont];
-        }
-
-        color = [self alternateTextColor];
-        if (color == nil)
-        {
-            color = [self defaultAlternateTextColor];
-        }
-
-        _markerTextAttributes = [NSDictionary dictionaryWithObjectsAndKeys:font, NSFontAttributeName, color, NSForegroundColorAttributeName, nil];
-#if !__has_feature(objc_arc)
-        [_markerTextAttributes retain];
-#endif
-    }
-    return _markerTextAttributes;
-}
-
 - (CGFloat)calculateRuleThickness
 {
     NSUInteger			lineCount, digits;
@@ -404,7 +369,7 @@
                 // Note that the ruler view is only as tall as the visible
                 // portion. Need to compensate for the clipview's coordinates.
                 CGFloat ypos = yinset + NSMinY(rects[0]) - NSMinY(visibleRect);
-                [self drawLabelAndMarkerInRect:NSMakeRect(0.0, ypos, NSWidth(bounds), NSHeight(rects[0])) atLineNumber:line];
+                [self drawLabelInRect:NSMakeRect(0.0, ypos, NSWidth(bounds), NSHeight(rects[0])) atLineNumber:line];
             }
         }];
 #else
@@ -433,7 +398,7 @@
                     // Note that the ruler view is only as tall as the visible
                     // portion. Need to compensate for the clipview's coordinates.
                     CGFloat ypos = yinset + NSMinY(rects[0]) - NSMinY(visibleRect);
-                    [self drawLabelAndMarkerInRect:NSMakeRect(0.0, ypos, NSWidth(bounds), NSHeight(rects[0])) atLineNumber:line];
+                    [self drawLabelInRect:NSMakeRect(0.0, ypos, NSWidth(bounds), NSHeight(rects[0])) atLineNumber:line];
                 }
             }
             if (index > NSMaxRange(range))
@@ -447,27 +412,12 @@
 }
 
 
-- (void)drawLabelAndMarkerInRect:(NSRect)rect atLineNumber:(NSUInteger)line
+- (void)drawLabelInRect:(NSRect)rect atLineNumber:(NSUInteger)line
 {
-    // TODO: refactoring necessary
-    // Markers should be drawn with drawMarkersInRect:(NSRect)rect
-    NoodleLineNumberMarker *marker = [_linesToMarkers objectForKey:[NSNumber numberWithUnsignedInteger:line]];
-    if (nil != marker) {
-        NSImage *markerImage = [marker image];
-        NSRect markerRect;
-        markerRect.size = [markerImage size];
-
-        // Marker is flush right and centered vertically within the line.
-        markerRect.origin.x = rect.size.width - [markerImage size].width;
-        markerRect.origin.y = rect.origin.y + rect.size.height / 2.0 - [marker imageOrigin].y;
-
-        [markerImage drawInRect:markerRect fromRect:NSMakeRect(0, 0, markerRect.size.width, markerRect.size.height) operation:NSCompositeSourceOver fraction:1.0];
-    }
-
     // Line numbers are internally stored starting at 0
     NSString *labelText = [NSString stringWithFormat:@"%jd", (intmax_t)line + 1];
 
-    NSDictionary *currentTextAttributes = (nil == marker)? [self textAttributes] : [self markerTextAttributes];
+    NSDictionary *currentTextAttributes = [self textAttributes];
     NSSize stringSize = [labelText sizeWithAttributes:currentTextAttributes];
 
     // Draw string flush right, centered vertically within the line
@@ -497,11 +447,15 @@
 	return NSNotFound;
 }
 
+
+#pragma mark - Marker Methods
+
+
 - (NoodleLineNumberMarker *)markerAtLine:(NSUInteger)line
 {
 	return [_linesToMarkers objectForKey:[NSNumber numberWithUnsignedInteger:line - 1]];
 }
-
+/*
 - (void)setMarkers:(NSArray *)markers
 {
 	NSEnumerator		*enumerator;
@@ -516,7 +470,7 @@
 		[self addMarker:marker];
 	}
 }
-
+*/
 - (void)addMarker:(NSRulerMarker *)aMarker
 {
 	if ([aMarker isKindOfClass:[NoodleLineNumberMarker class]])
@@ -524,7 +478,7 @@
 		[_linesToMarkers setObject:aMarker
 							forKey:[NSNumber numberWithUnsignedInteger:[(NoodleLineNumberMarker *)aMarker lineNumber] - 1]];
 	}
-	else
+//	else
 	{
 		[super addMarker:aMarker];
 	}
@@ -536,13 +490,14 @@
 	{
 		[_linesToMarkers removeObjectForKey:[NSNumber numberWithUnsignedInteger:[(NoodleLineNumberMarker *)aMarker lineNumber] - 1]];
 	}
-	else
+//	else
 	{
 		[super removeMarker:aMarker];
 	}
 }
 
-#pragma mark NSCoding methods
+
+#pragma mark - NSCoding methods
 
 #define NOODLE_FONT_CODING_KEY				@"font"
 #define NOODLE_TEXT_COLOR_CODING_KEY		@"textColor"

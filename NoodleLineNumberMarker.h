@@ -29,6 +29,8 @@
 
 #import <Cocoa/Cocoa.h>
 
+@class NoodleLineNumberView;
+
 /*
  Marker for NoodleLineNumberView.
  
@@ -36,14 +38,11 @@
  */
 
 @interface NoodleLineNumberMarker : NSRulerMarker
-{
-	NSUInteger		_lineNumber;
-}
 
-- (id)initWithRulerView:(NSRulerView *)aRulerView lineNumber:(CGFloat)line image:(NSImage *)anImage imageOrigin:(NSPoint)imageOrigin;
+- (instancetype)initWithRulerView:(NSRulerView *)aRulerView lineNumber:(CGFloat)line image:(NSImage *)anImage imageOrigin:(NSPoint)imageOrigin __deprecated;
+/* be compatible with superclass */
+- (instancetype)initWithRulerView:(NoodleLineNumberView *)ruler markerLocation:(CGFloat)location image:(NSImage *)image imageOrigin:(NSPoint)imageOrigin;
 
-- (void)setLineNumber:(NSUInteger)line;
-- (NSUInteger)lineNumber;
-
+@property (assign) NSUInteger lineNumber;
 
 @end
