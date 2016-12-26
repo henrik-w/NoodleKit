@@ -228,6 +228,7 @@
 	}
 }
 
+/* This not returns a line number as the name promise, it is a line index number */
 - (NSUInteger)lineNumberForCharacterIndex:(NSUInteger)charIndex
 {
     NSUInteger			left, right, mid, lineStart;
@@ -452,46 +453,19 @@
 
 - (NSUInteger)lineNumberForLocation:(CGFloat)location
 {
-	NSUInteger		line, count, index, rectCount, i;
-	NSRectArray		rects;
-	NSRect			visibleRect;
-	NSLayoutManager	*layoutManager;
-	NSTextContainer	*container;
-	NSRange			nullRange;
-	NSMutableArray	*lines;
-	id				view;
-    
-	view = [self clientView];
-	visibleRect = [[[self scrollView] contentView] bounds];
-	
-	lines = [self lineIndices];
-    
-	location += NSMinY(visibleRect);
+	id view = [self clientView];
+	NSRect visibleRect = [[[self scrollView] contentView] bounds];
 	
 	if ([view isKindOfClass:[NSTextView class]])
 	{
-		nullRange = NSMakeRange(NSNotFound, 0);
-		layoutManager = [view layoutManager];
-		container = [view textContainer];
-		count = [lines count];
-		
-		for (line = 0; line < count; line++)
-		{
-			index = [[lines objectAtIndex:line] unsignedIntegerValue];
-			
-			rects = [layoutManager rectArrayForCharacterRange:NSMakeRange(index, 0)
-								 withinSelectedCharacterRange:nullRange
-											  inTextContainer:container
-													rectCount:&rectCount];
-			
-			for (i = 0; i < rectCount; i++)
-			{
-				if ((location >= NSMinY(rects[i])) && (location < NSMaxY(rects[i])))
-				{
-					return line + 1;
-				}
-			}
-		}	
+		NSLayoutManager	*layoutManager = [view layoutManager];
+
+        location += NSMinY(visibleRect);
+        NSPoint characterPoint = ([self orientation] == NSVerticalRuler)? (NSPoint){0, location} : (NSPoint){location, 0};
+        NSUInteger characterIndexForLocation = [layoutManager characterIndexForPoint:characterPoint
+                                                                     inTextContainer:[view textContainer]
+                                            fractionOfDistanceBetweenInsertionPoints:NULL];
+        return [self lineNumberForCharacterIndex:characterIndexForLocation] + 1;
 	}
 	return NSNotFound;
 }
