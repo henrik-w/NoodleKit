@@ -367,6 +367,24 @@
         // Find the characters that are currently visible
         NSRange glyphRange = [layoutManager glyphRangeForBoundingRect:visibleRect inTextContainer:container];
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 101100
+        // Not tested adequate, there are still some quirks
+        if (_invalidCharacterIndex < NSUIntegerMax) {
+            [self calculateLines];
+        }
+        __block NSUInteger lastLine = NSUIntegerMax;
+        glyphRange.length++;
+        [layoutManager enumerateLineFragmentsForGlyphRange:glyphRange usingBlock:^(NSRect rect, NSRect usedRect, NSTextContainer * _Nonnull textContainer, NSRange glyphRange, BOOL * _Nonnull stop) {
+            NSRange range = [layoutManager characterRangeForGlyphRange:glyphRange actualGlyphRange:NULL];
+            const NSUInteger lineNumber = [self lineNumberForCharacterIndex:range.location];
+            if (lineNumber == lastLine) {
+                return;
+            }
+            lastLine = lineNumber;
+            CGFloat ypos = yinset + NSMinY(rect) - NSMinY(visibleRect);
+            [self drawLabelInRect:NSMakeRect(0.0, ypos, NSWidth(bounds), NSHeight(rect)) atLineNumber:lineNumber];
+        }];
+#else
         NSRange range = [layoutManager characterRangeForGlyphRange:glyphRange actualGlyphRange:NULL];
         
 #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
@@ -423,6 +441,7 @@
                 break;
             }
         }
+#endif
 #endif
     }
 }
