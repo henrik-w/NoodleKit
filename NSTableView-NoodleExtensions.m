@@ -117,7 +117,7 @@ void NoodleClearRect(NSRect rect)
 		[view setEnabled:YES];
 		[view setBordered:NO];
 		[view setImagePosition:NSImageOnly];
-		[view setTitle:nil];
+		[view setTitle:@""];
 		[[view cell] setHighlightsBy:NSNoCellMask];
 		[[view cell] setShowsStateBy:NSNoCellMask];
 		[[view cell] setImageScaling:NSImageScaleNone];
