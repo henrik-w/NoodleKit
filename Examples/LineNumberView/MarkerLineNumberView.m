@@ -118,10 +118,13 @@
             NSSize imageSize = NSMakeSize([self ruleThickness] + [self reservedThicknessForMarkers] - 2, MARKER_HEIGHT);
             NSPoint imageOrigin = NSMakePoint(imageSize.width - [self ruleThickness], MARKER_HEIGHT / 2);
             marker = [[NoodleLineNumberMarker alloc] initWithRulerView:self
+            //marker = [[NSRulerMarker alloc] initWithRulerView:self
                                                         markerLocation:location.y
                                                                  image:[self markerImageWithSize:imageSize]
                                                            imageOrigin:imageOrigin];
+            //[self trackMarker:marker withMouseEvent:theEvent];
 			[self addMarker:marker];
+            //[self setMarkers:@[marker]];
 			[marker release];
 		}
 		[self setNeedsDisplay:YES];

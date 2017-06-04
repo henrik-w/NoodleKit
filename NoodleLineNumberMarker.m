@@ -80,6 +80,21 @@
 }
 
 
+- (NSRect)imageRectInRuler
+{
+    NSRect r = [super imageRectInRuler];
+    return r;
+}
+
+- (CGFloat)XXthicknessRequiredInRuler
+{
+    // TODO: Fix bug. This result increases by two with each call
+    CGFloat s_thickness = [super thicknessRequiredInRuler];
+    CGFloat thickness = [_image size].width;
+    return thickness;
+}
+
+
 - (void)drawRect:(NSRect)rect
 {
     if (nil == _image || nil == _ruler || nil == [_ruler clientView]) {
